@@ -28,139 +28,20 @@ type ABstore struct {
 	contractapi.Contract
 }
 
-func (t *ABstore) Init(ctx contractapi.TransactionContextInterface, A string, Aval int, B string, Bval int, C string, Cval int) error {
-	fmt.Println("ABstore Init")
-	var err error
-	// Initialize the chaincode
-	fmt.Printf("Aval = %d, Bval = %d\n, Cval = %d\n", Aval, Bval,Cval)
-	// Write the state to the ledger
-	err = ctx.GetStub().PutState(A, []byte(strconv.Itoa(Aval)))
+func (t *ABstore) InitUser(ctx contractapi.TransactionContextInterface, user string, value string) error {
+	exists, err := ctx.GetStub().GetState(user)
 	if err != nil {
-		return err
+		return fmt.Errorf("상태 조회 실패: %v", err)
+	}
+	if exists != nil {
+		return fmt.Errorf("이미 존재하는 사용자입니다")
 	}
 
-	err = ctx.GetStub().PutState(B, []byte(strconv.Itoa(Bval)))
+	err = ctx.GetStub().PutState(user, []byte(value))
 	if err != nil {
-		return err
+		return fmt.Errorf("초기값 저장 실패: %v", err)
 	}
-
-	err = ctx.GetStub().PutState(C, []byte(strconv.Itoa(Cval)))
-	if err != nil {
-		return err
-	}
-
-
 	return nil
-}
-
-// Transaction makes payment of X units from A to B
-func (t *ABstore) Invoke(ctx contractapi.TransactionContextInterface, A, B, C string, X int) error {
-	var err error
-	var Aval int
-	var Bval int
-	var Cval int
-	// Get the state from the ledger
-	// TODO: will be nice to have a GetAllState call to ledger
-	Avalbytes, err := ctx.GetStub().GetState(A)
-	if err != nil {
-		return fmt.Errorf("Failed to get state")
-	}
-	if Avalbytes == nil {
-		return fmt.Errorf("Entity not found")
-	}
-	Aval, _ = strconv.Atoi(string(Avalbytes))
-
-	Bvalbytes, err := ctx.GetStub().GetState(B)
-	if err != nil {
-		return fmt.Errorf("Failed to get state")
-	}
-	if Bvalbytes == nil {
-		return fmt.Errorf("Entity not found")
-	}
-	Bval, _ = strconv.Atoi(string(Bvalbytes))
-
-	Cvalbytes, err := ctx.GetStub().GetState(C)
-	if err != nil {
-		return fmt.Errorf("Failed to get state")
-	}
-	if Cvalbytes == nil {
-		return fmt.Errorf("Entity not found")
-	}
-	Cval, _ = strconv.Atoi(string(Cvalbytes))
-	
-	// Perform the execution
-	Aval = Aval - X
-	Bval = Bval + X - ( X / 10 )
-	Cval = Cval + ( X / 10 )
-	fmt.Printf("Aval = %d, Bval = %d, Cval = %d\n", Aval, Bval, Cval)
-
-	// Write the state back to the ledger
-	err = ctx.GetStub().PutState(A, []byte(strconv.Itoa(Aval)))
-	if err != nil {
-		return err
-	}
-
-	err = ctx.GetStub().PutState(B, []byte(strconv.Itoa(Bval)))
-	if err != nil {
-		return err
-	}
-
-	err = ctx.GetStub().PutState(C, []byte(strconv.Itoa(Cval)))
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Delete  an entity from state
-func (t *ABstore) Delete(ctx contractapi.TransactionContextInterface, A string) error {
-
-	// Delete the key from the state in ledger
-	err := ctx.GetStub().DelState(A)
-	if err != nil {
-		return fmt.Errorf("Failed to delete state")
-	}
-
-	return nil
-}
-
-// Query callback representing the query of a chaincode
-func (t *ABstore) Query(ctx contractapi.TransactionContextInterface, A string) (string, error) {
-	var err error
-	// Get the state from the ledger
-	Avalbytes, err := ctx.GetStub().GetState(A)
-	if err != nil {
-		jsonResp := "{\"Error\":\"Failed to get state for " + A + "\"}"
-		return "", errors.New(jsonResp)
-	}
-
-	if Avalbytes == nil {
-		jsonResp := "{\"Error\":\"Nil amount for " + A + "\"}"
-		return "", errors.New(jsonResp)
-	}
-
-	jsonResp := "{\"Name\":\"" + A + "\",\"Amount\":\"" + string(Avalbytes) + "\"}"
-	fmt.Printf("Query Response:%s\n", jsonResp)
-	return string(Avalbytes), nil
-}
-
-func (t *ABstore) GetAllQuery(ctx contractapi.TransactionContextInterface) ([]string, error) {
-    resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
-    if err != nil {
-        return nil, err
-    }
-    defer resultsIterator.Close()
-    var wallet []string
-    for resultsIterator.HasNext() {
-        queryResponse, err := resultsIterator.Next()
-        if err != nil {
-            return nil, err
-        }
-        jsonResp := "{\"Name\":\"" + string(queryResponse.Key) + "\",\"Amount\":\"" + string(queryResponse.Value) + "\"}"
-        wallet = append(wallet, jsonResp)
-    }
-    return wallet, nil
 }
 
 func main() {
